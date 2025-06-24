@@ -1,8 +1,13 @@
 const sharp = require('sharp');
 const faceapi = require('@vladmandic/face-api');
-const tf = require('@tensorflow/tfjs-node');
+const tf = require('@tensorflow/tfjs-node-cpu');
 const { getConfig, mergeConfig } = require('./config');
 const path = require('path');
+
+// Configure TensorFlow for Cloud Functions environment
+tf.env().set('WEBGL_PACK', false);
+tf.env().set('WEBGL_FORCE_F16_TEXTURES', false);
+tf.env().set('WEBGL_RENDER_FLOAT32_CAPABLE', false);
 
 // Initialize face-api models
 let modelsLoaded = false;
