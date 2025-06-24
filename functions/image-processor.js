@@ -1,13 +1,12 @@
 const sharp = require('sharp');
 const faceapi = require('@vladmandic/face-api');
-const tf = require('@tensorflow/tfjs-node-cpu');
+const tf = require('@tensorflow/tfjs');
 const { getConfig, mergeConfig } = require('./config');
 const path = require('path');
+const { createCanvas, loadImage } = require('canvas');
 
-// Configure TensorFlow for Cloud Functions environment
-tf.env().set('WEBGL_PACK', false);
-tf.env().set('WEBGL_FORCE_F16_TEXTURES', false);
-tf.env().set('WEBGL_RENDER_FLOAT32_CAPABLE', false);
+// Configure TensorFlow for serverless environment
+tf.env().set('IS_NODE', true);
 
 // Initialize face-api models
 let modelsLoaded = false;
@@ -70,17 +69,20 @@ async function smartCropImage(image, metadata, config) {
   // Try to detect faces if models are loaded
   if (modelsLoaded) {
     try {
-      // Convert image to buffer for face detection
+      // Convert image to JPEG buffer for face detection
       const imageBuffer = await image.jpeg().toBuffer();
       
-      // Use TensorFlow.js to decode the image directly
-      const tensor = tf.node.decodeImage(imageBuffer, 3); // 3 channels for RGB
+      // Create canvas and load image for face-api.js
+      const img = await loadImage(imageBuffer);
+      const canvas = createCanvas(img.width, img.height);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
       
-      // Detect faces using the tensor
-      const detections = await faceapi.detectAllFaces(tensor, new faceapi.TinyFaceDetectorOptions());
-      
-      // Dispose of the tensor to free memory
-      tensor.dispose();
+      // Detect faces using canvas
+      const detections = await faceapi.detectAllFaces(canvas, new faceapi.TinyFaceDetectorOptions({
+        inputSize: 416,
+        scoreThreshold: 0.5
+      }));
       
       if (detections.length > 0) {
         // Use the largest face (most prominent)
