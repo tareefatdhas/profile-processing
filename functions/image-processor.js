@@ -1,12 +1,35 @@
 const sharp = require('sharp');
-const faceapi = require('@vladmandic/face-api');
 const tf = require('@tensorflow/tfjs');
+const wasm = require('@tensorflow/tfjs-backend-wasm');
+// Use the WASM-compatible version of face-api
+const faceapi = require('@vladmandic/face-api/dist/face-api.node-wasm.js');
 const { getConfig, mergeConfig } = require('./config');
 const path = require('path');
-const { createCanvas, loadImage } = require('canvas');
+const { Canvas, Image, ImageData } = require('canvas');
 
-// Configure TensorFlow for serverless environment
-tf.env().set('IS_NODE', true);
+// Patch the environment for face-api to work with canvas
+faceapi.env.monkeyPatch({ Canvas, Image, ImageData });
+
+// Initialize TensorFlow with WASM backend for serverless compatibility
+let tensorflowInitialized = false;
+
+async function initializeTensorFlow() {
+  if (tensorflowInitialized) return;
+  
+  try {
+    // Set WASM path for TensorFlow
+    wasm.setWasmPaths('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm/dist/');
+    
+    // Set backend to WASM
+    await tf.setBackend('wasm');
+    await tf.ready();
+    
+    tensorflowInitialized = true;
+    console.log('✅ TensorFlow WASM backend initialized');
+  } catch (error) {
+    console.warn('⚠️ Failed to initialize TensorFlow WASM backend:', error.message);
+  }
+}
 
 // Initialize face-api models
 let modelsLoaded = false;
@@ -15,6 +38,9 @@ async function loadModels() {
   if (modelsLoaded) return;
   
   try {
+    // Initialize TensorFlow first
+    await initializeTensorFlow();
+    
     const modelPath = path.join(__dirname, 'models');
     await faceapi.nets.tinyFaceDetector.loadFromDisk(modelPath);
     modelsLoaded = true;
@@ -72,13 +98,14 @@ async function smartCropImage(image, metadata, config) {
       // Convert image to JPEG buffer for face detection
       const imageBuffer = await image.jpeg().toBuffer();
       
-      // Create canvas and load image for face-api.js
-      const img = await loadImage(imageBuffer);
-      const canvas = createCanvas(img.width, img.height);
+      // Create canvas from image buffer for face-api.js
+      const img = new Image();
+      img.src = imageBuffer;
+      const canvas = new Canvas(img.width, img.height);
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0);
       
-      // Detect faces using canvas
+      // Detect faces using the canvas
       const detections = await faceapi.detectAllFaces(canvas, new faceapi.TinyFaceDetectorOptions({
         inputSize: 416,
         scoreThreshold: 0.5

@@ -1,9 +1,36 @@
 const sharp = require('sharp');
 const fs = require('fs');
 const path = require('path');
-const faceapi = require('@vladmandic/face-api');
-const tf = require('@tensorflow/tfjs-node');
+const tf = require('@tensorflow/tfjs');
+const wasm = require('@tensorflow/tfjs-backend-wasm');
+// Use the WASM-compatible version of face-api
+const faceapi = require('@vladmandic/face-api/dist/face-api.node-wasm.js');
+const { Canvas, Image, ImageData } = require('canvas');
 const { getConfig, mergeConfig } = require('./config');
+
+// Patch the environment for face-api to work with canvas
+faceapi.env.monkeyPatch({ Canvas, Image, ImageData });
+
+// Initialize TensorFlow with WASM backend for compatibility
+let tensorflowInitialized = false;
+
+async function initializeTensorFlow() {
+  if (tensorflowInitialized) return;
+  
+  try {
+    // Set WASM path for TensorFlow
+    wasm.setWasmPaths('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm/dist/');
+    
+    // Set backend to WASM
+    await tf.setBackend('wasm');
+    await tf.ready();
+    
+    tensorflowInitialized = true;
+    console.log('✅ TensorFlow WASM backend initialized');
+  } catch (error) {
+    console.warn('⚠️ Failed to initialize TensorFlow WASM backend:', error.message);
+  }
+}
 
 // Initialize face-api models
 let modelsLoaded = false;
@@ -12,6 +39,9 @@ async function loadModels() {
   if (modelsLoaded) return;
   
   try {
+    // Initialize TensorFlow first
+    await initializeTensorFlow();
+    
     const modelPath = path.join(__dirname, 'models');
     await faceapi.nets.tinyFaceDetector.loadFromDisk(modelPath);
     modelsLoaded = true;
@@ -100,17 +130,21 @@ async function smartCropImage(image, metadata, config) {
   // Try to detect faces if models are loaded
   if (modelsLoaded) {
     try {
-      // Convert image to buffer for face detection
+      // Convert image to JPEG buffer for face detection
       const imageBuffer = await image.jpeg().toBuffer();
       
-      // Use TensorFlow.js to decode the image directly
-      const tensor = tf.node.decodeImage(imageBuffer, 3); // 3 channels for RGB
+      // Create canvas from image buffer for face-api.js
+      const img = new Image();
+      img.src = imageBuffer;
+      const canvas = new Canvas(img.width, img.height);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
       
-      // Detect faces using the tensor
-      const detections = await faceapi.detectAllFaces(tensor, new faceapi.TinyFaceDetectorOptions());
-      
-      // Dispose of the tensor to free memory
-      tensor.dispose();
+      // Detect faces using the canvas
+      const detections = await faceapi.detectAllFaces(canvas, new faceapi.TinyFaceDetectorOptions({
+        inputSize: 416,
+        scoreThreshold: 0.5
+      }));
       
       if (detections.length > 0) {
         // Use the largest face (most prominent)
