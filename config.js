@@ -55,8 +55,8 @@ const processingConfig = {
     // Tight crop detection settings
     tightCropDetection: {
       enabled: true,                    // Enable tight crop detection
-      faceToImageRatioThreshold: 0.25,  // Face area / image area ratio that indicates tight crop
-      faceEdgeDistanceThreshold: 0.15,  // Face distance from edges (relative to image size)
+      faceToImageRatioThreshold: 0.03,  // Face area / image area ratio that indicates tight crop (3%)
+      faceEdgeDistanceThreshold: 0.20,  // Face distance from edges (relative to image size) (20%)
       looseCropSize: 0.95,              // Crop size when already tight (minimal crop)
       skipCropSize: 1.0                 // When to skip cropping entirely
     },

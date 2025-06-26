@@ -185,13 +185,26 @@ async function smartCropImage(image, metadata, config) {
       (height - faceCenter.y) / height       // Distance to bottom edge
     );
     
-    // Consider image tight if face takes up significant portion AND is close to edges
+    // Debug logging
+    console.log(`📊 Face detection analysis:`);
+    console.log(`   - Face box: ${faceBox.width}x${faceBox.height} at (${faceBox.x}, ${faceBox.y})`);
+    console.log(`   - Face area: ${faceArea} pixels (${(faceToImageRatio * 100).toFixed(2)}% of image)`);
+    console.log(`   - Face center: (${Math.round(faceCenter.x)}, ${Math.round(faceCenter.y)})`);
+    console.log(`   - Distance to edges: L=${(faceCenter.x / width * 100).toFixed(1)}%, R=${((width - faceCenter.x) / width * 100).toFixed(1)}%, T=${(faceCenter.y / height * 100).toFixed(1)}%, B=${((height - faceCenter.y) / height * 100).toFixed(1)}%`);
+    console.log(`   - Min edge distance: ${(minDistanceToEdge * 100).toFixed(1)}%`);
+    console.log(`   - Thresholds: face ratio > ${(config.cropping.tightCropDetection.faceToImageRatioThreshold || 0.25) * 100}% OR edge distance < ${(config.cropping.tightCropDetection.faceEdgeDistanceThreshold || 0.15) * 100}%`);
+    
+    // Consider image tight if face takes up significant portion OR is close to edges
     isAlreadyTight = faceToImageRatio > (config.cropping.tightCropDetection.faceToImageRatioThreshold || 0.25) ||
                      minDistanceToEdge < (config.cropping.tightCropDetection.faceEdgeDistanceThreshold || 0.15);
     
     if (isAlreadyTight) {
       console.log(`🔍 Tight crop detected - Face ratio: ${(faceToImageRatio * 100).toFixed(1)}%, Min edge distance: ${(minDistanceToEdge * 100).toFixed(1)}%`);
+    } else {
+      console.log(`❌ Not tight crop - Face ratio: ${(faceToImageRatio * 100).toFixed(1)}% (need > ${(config.cropping.tightCropDetection.faceToImageRatioThreshold || 0.25) * 100}%), Min edge distance: ${(minDistanceToEdge * 100).toFixed(1)}% (need < ${(config.cropping.tightCropDetection.faceEdgeDistanceThreshold || 0.15) * 100}%)`);
     }
+  } else {
+    console.log(`⚠️ Tight crop detection skipped - enabled: ${config.cropping.tightCropDetection?.enabled}, faceCenter: ${!!faceCenter}, faceBox: ${!!faceBox}`);
   }
   
   // Determine crop parameters using config and tight crop detection
