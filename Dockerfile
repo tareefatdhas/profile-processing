@@ -23,10 +23,12 @@ WORKDIR /app
 
 # Copy package files first for better Docker layer caching
 COPY package*.json ./
-COPY functions/package*.json ./functions/
 
 # Install root dependencies (minimal)
 RUN npm ci --only=production
+
+# Copy function package files
+COPY functions/package*.json ./functions/
 
 # Install function dependencies
 WORKDIR /app/functions
