@@ -52,6 +52,15 @@ const processingConfig = {
     faceDetectedSize: 0.65,   // When face is detected
     fallbackSize: 0.8,       // When no face detected
     
+    // Tight crop detection settings
+    tightCropDetection: {
+      enabled: true,                    // Enable tight crop detection
+      faceToImageRatioThreshold: 0.25,  // Face area / image area ratio that indicates tight crop
+      faceEdgeDistanceThreshold: 0.15,  // Face distance from edges (relative to image size)
+      looseCropSize: 0.95,              // Crop size when already tight (minimal crop)
+      skipCropSize: 1.0                 // When to skip cropping entirely
+    },
+    
     // Face positioning in frame (0.0 = top, 0.5 = center, 1.0 = bottom)
     faceVerticalOffset: 0.1, // Move face down in frame
     
@@ -179,7 +188,15 @@ module.exports = {
       color: { ...base.color, ...customSettings.color },
       contrast: { ...base.contrast, ...customSettings.contrast },
       sharpening: { ...base.sharpening, ...customSettings.sharpening },
-      cropping: { ...base.cropping, ...customSettings.cropping },
+      cropping: { 
+        ...base.cropping, 
+        ...customSettings.cropping,
+        // Deep merge tightCropDetection to preserve all default values
+        tightCropDetection: {
+          ...base.cropping.tightCropDetection,
+          ...customSettings.cropping?.tightCropDetection
+        }
+      },
       output: { ...base.output, ...customSettings.output }
     };
   }

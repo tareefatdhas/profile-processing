@@ -91,6 +91,7 @@ async function smartCropImage(image, metadata, config) {
   console.log(`Original image: ${width}x${height}, aspect ratio: ${(width/height).toFixed(2)}`);
   
   let faceCenter = null;
+  let faceBox = null;
   
   // Try to detect faces if models are loaded
   if (modelsLoaded) {
@@ -118,6 +119,7 @@ async function smartCropImage(image, metadata, config) {
         );
         
         const box = largestFace.box;
+        faceBox = box;
         faceCenter = {
           x: box.x + box.width / 2,
           y: box.y + box.height / 2
@@ -133,18 +135,47 @@ async function smartCropImage(image, metadata, config) {
     }
   }
   
-  // Determine crop parameters using config
-  let cropWidth, cropHeight;
-  
-  if (faceCenter) {
-    const squareSize = Math.min(width, height) * config.cropping.faceDetectedSize; 
-    cropWidth = Math.floor(squareSize);
-    cropHeight = Math.floor(squareSize);
-  } else {
-    const squareSize = Math.min(width, height) * config.cropping.fallbackSize;
-    cropWidth = Math.floor(squareSize);
-    cropHeight = Math.floor(squareSize);
+  // Check if image is already tightly cropped (if tight crop detection is enabled)
+  let isAlreadyTight = false;
+  if (config.cropping.tightCropDetection?.enabled && faceCenter && faceBox) {
+    const imageArea = width * height;
+    const faceArea = faceBox.width * faceBox.height;
+    const faceToImageRatio = faceArea / imageArea;
+    
+    // Calculate distance from face to edges (normalized)
+    const minDistanceToEdge = Math.min(
+      faceCenter.x / width,                    // Distance to left edge
+      (width - faceCenter.x) / width,         // Distance to right edge  
+      faceCenter.y / height,                  // Distance to top edge
+      (height - faceCenter.y) / height       // Distance to bottom edge
+    );
+    
+    // Consider image tight if face takes up significant portion AND is close to edges
+    isAlreadyTight = faceToImageRatio > (config.cropping.tightCropDetection.faceToImageRatioThreshold || 0.25) ||
+                     minDistanceToEdge < (config.cropping.tightCropDetection.faceEdgeDistanceThreshold || 0.15);
+    
+    if (isAlreadyTight) {
+      console.log(`🔍 Tight crop detected - Face ratio: ${(faceToImageRatio * 100).toFixed(1)}%, Min edge distance: ${(minDistanceToEdge * 100).toFixed(1)}%`);
+    }
   }
+  
+  // Determine crop parameters using config and tight crop detection
+  let cropWidth, cropHeight;
+  let cropSizeMultiplier;
+  
+  if (isAlreadyTight) {
+    // Use loose crop or skip cropping for already tight images
+    cropSizeMultiplier = config.cropping.tightCropDetection?.looseCropSize || 0.95;
+    console.log(`📏 Using loose crop size: ${cropSizeMultiplier} (image already tight)`);
+  } else if (faceCenter) {
+    cropSizeMultiplier = config.cropping.faceDetectedSize;
+  } else {
+    cropSizeMultiplier = config.cropping.fallbackSize;
+  }
+  
+  const squareSize = Math.min(width, height) * cropSizeMultiplier;
+  cropWidth = Math.floor(squareSize);
+  cropHeight = Math.floor(squareSize);
   
   let left, top;
   

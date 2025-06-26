@@ -32,6 +32,8 @@ Options:
   --gamma <value>           Gamma/contrast (0.8-1.8)
   --sharpening <value>      Sharpening intensity (0.5-2.5)
   --crop-size <value>       Crop size (0.5-1.0)
+  --tight-crop-off          Disable tight crop detection
+  --loose-crop <value>      Loose crop size for tight images (0.8-1.0)
   --help                    Show this help
 
 Examples:
@@ -68,6 +70,13 @@ Examples:
         break;
       case '--crop-size':
         options.cropSize = parseFloat(value);
+        break;
+      case '--tight-crop-off':
+        options.tightCropOff = true;
+        i--; // No value for this flag
+        break;
+      case '--loose-crop':
+        options.looseCrop = parseFloat(value);
         break;
       case '--help':
         console.log('Help text shown above');
@@ -122,6 +131,21 @@ function buildCustomSettings(options) {
     customSettings.cropping = { faceDetectedSize: options.cropSize };
   }
   
+  // Handle tight crop detection settings
+  if (options.tightCropOff || options.looseCrop !== undefined) {
+    if (!customSettings.cropping) {
+      customSettings.cropping = {};
+    }
+    
+    customSettings.cropping.tightCropDetection = {
+      enabled: !options.tightCropOff
+    };
+    
+    if (options.looseCrop !== undefined) {
+      customSettings.cropping.tightCropDetection.looseCropSize = options.looseCrop;
+    }
+  }
+  
   return customSettings;
 }
 
@@ -164,6 +188,13 @@ async function main() {
       }
       if (customSettings.cropping?.faceDetectedSize) {
         console.log(`   Crop size: ${customSettings.cropping.faceDetectedSize}`);
+      }
+      if (customSettings.cropping?.tightCropDetection) {
+        const tcd = customSettings.cropping.tightCropDetection;
+        console.log(`   Tight crop detection: ${tcd.enabled ? 'enabled' : 'disabled'}`);
+        if (tcd.looseCropSize) {
+          console.log(`   Loose crop size: ${tcd.looseCropSize}`);
+        }
       }
     }
     
