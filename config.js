@@ -9,7 +9,7 @@ const processingConfig = {
   // Brightness settings
   brightness: {
     // Base brightness adjustment for all images
-    base: 1.15,
+    base: 1.2,
     
     // Adaptive brightness based on image darkness
     darkImages: 1.16,      // Images with avg luminance < darkThreshold
@@ -27,14 +27,14 @@ const processingConfig = {
 
   // Color and saturation
   color: {
-    saturation: 0.9,      // Color intensity
+    saturation: 0.85,      // Color intensity
     finalSaturation: 1.04, // Final saturation adjustment
-    hue: 0                 // Hue shift (0 = no change)
+    hue: -8                // Hue shift (0 = no change)
   },
 
   // Contrast and gamma
   contrast: {
-    gamma: 1.1,            // Gamma correction for mid-tones
+    gamma: 1.0,            // Gamma correction for mid-tones
     linearMultiplier: 1.07, // Linear contrast multiplier
     linearOffset: 1.5      // Linear contrast offset
   },
@@ -55,7 +55,7 @@ const processingConfig = {
     // Tight crop detection settings
     tightCropDetection: {
       enabled: true,                    // Enable tight crop detection
-      faceToImageRatioThreshold: 0.03,  // Face area / image area ratio that indicates tight crop (3%)
+      faceToImageRatioThreshold: 0.07,  // Face area / image area ratio that indicates tight crop (3%)
       faceEdgeDistanceThreshold: 0.20,  // Face distance from edges (relative to image size) (20%)
       looseCropSize: 0.95,              // Crop size when already tight (minimal crop)
       skipCropSize: 1.0                 // When to skip cropping entirely
